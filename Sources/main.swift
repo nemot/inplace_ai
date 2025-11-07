@@ -147,6 +147,7 @@ struct SettingsView: View {
     @ObservedObject var controller: StatusBarController
 
     @State private var apiKey: String = ""
+    @State private var workflows: [Workflow] = []
     @State private var models: [LLMModel] = []
     @State private var isLoadingModels = false
 
@@ -171,10 +172,10 @@ struct SettingsView: View {
 
             ScrollView {
                 VStack(spacing: 20) {
-                    ForEach($controller.workflows) { $workflow in
+                    ForEach($workflows) { $workflow in
                         WorkflowView(workflow: $workflow, models: models, onRemove: {
-                            if controller.workflows.count > 1 {
-                                controller.workflows.removeAll { $0.id == workflow.id }
+                            if workflows.count > 1 {
+                                workflows.removeAll { $0.id == workflow.id }
                             }
                         })
                             .padding()
@@ -184,13 +185,16 @@ struct SettingsView: View {
                 }
             }
 
-            Button("Save") {
-                saveSettings()
+            HStack {
+                Spacer()
+                Button("Save") {
+                    saveSettings()
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
         }
         .padding(30)
-        .frame(width: 900, height: 600)
+        .frame(width: 600, height: 800)
         .background(.ultraThinMaterial.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
@@ -199,6 +203,7 @@ struct SettingsView: View {
         )
         .onAppear {
             apiKey = PersistenceManager.shared.getAPIKey() ?? ""
+            workflows = controller.workflows
             loadModels()
         }
     }
@@ -216,11 +221,12 @@ struct SettingsView: View {
     }
 
     private func addWorkflow() {
-        controller.workflows.append(Workflow())
+        workflows.append(Workflow())
     }
 
     private func saveSettings() {
         PersistenceManager.shared.setAPIKey(apiKey)
+        controller.workflows = workflows
         PersistenceManager.shared.saveWorkflows(controller.workflows)
         controller.registerHotkeys()
     }
@@ -252,25 +258,50 @@ struct WorkflowView: View {
 
             Text("Prompt")
             TextEditor(text: $workflow.prompt)
-                .frame(height: 60)
-                .border(Color.gray.opacity(0.5), width: 1)
-                .cornerRadius(4)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .font(.system(size: 14))
+                .frame(height: 80)
+                .background(Color.white.opacity(0.5))
+                .cornerRadius(6)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                )
 
             HStack {
                 VStack {
                     Text("Primary Hotkey")
-                    HotkeyField(hotkey: $workflow.primaryHotkey)
-                        .frame(height: 24)
+                    HStack {
+                        HotkeyField(hotkey: $workflow.primaryHotkey)
+                            .frame(height: 24)
+                        Button("⌫") {
+                            workflow.primaryHotkey = ""
+                        }
+                        .buttonStyle(.borderless)
+                    }
                 }
                 VStack {
                     Text("Optional Hotkey 1")
-                    HotkeyField(hotkey: $workflow.optionalHotkey1)
-                        .frame(height: 24)
+                    HStack {
+                        HotkeyField(hotkey: $workflow.optionalHotkey1)
+                            .frame(height: 24)
+                        Button("⌫") {
+                            workflow.optionalHotkey1 = ""
+                        }
+                        .buttonStyle(.borderless)
+                    }
                 }
                 VStack {
                     Text("Optional Hotkey 2")
-                    HotkeyField(hotkey: $workflow.optionalHotkey2)
-                        .frame(height: 24)
+                    HStack {
+                        HotkeyField(hotkey: $workflow.optionalHotkey2)
+                            .frame(height: 24)
+                        Button("⌫") {
+                            workflow.optionalHotkey2 = ""
+                        }
+                        .buttonStyle(.borderless)
+                    }
                 }
             }
 
