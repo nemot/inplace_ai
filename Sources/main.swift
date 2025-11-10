@@ -3,7 +3,7 @@ import SwiftUI
 import Combine
 import ApplicationServices
 
-let currentVersion = "0.0.1"
+let currentVersion = "1.0.1"
 
 class StatusItemView: NSView {
     private let progressIndicator: NSProgressIndicator
