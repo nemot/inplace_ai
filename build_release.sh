@@ -4,7 +4,7 @@
 
 set -e
 
-VERSION=${1:-"v1.0.1"}
+VERSION=${1:-"v0.0.1"}
 BUILD_DIR=".build/release"
 ARCHIVE_NAME="InplaceAI-${VERSION}.tar.gz"
 BINARY_NAME="InplaceAI"
