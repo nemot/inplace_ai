@@ -3,6 +3,8 @@ import SwiftUI
 import Combine
 import ApplicationServices
 
+let currentVersion = "0.0.1"
+
 class StatusItemView: NSView {
     private let progressIndicator: NSProgressIndicator
 
@@ -73,6 +75,7 @@ class StatusBarController: NSObject, NSApplicationDelegate, ObservableObject {
         // Create menu
         let menu = NSMenu()
         menu.addItem(withTitle: "Settings", action: #selector(openSettings), keyEquivalent: "")
+        menu.addItem(withTitle: "Check for Updates", action: #selector(checkForUpdates), keyEquivalent: "")
         menu.addItem(withTitle: "View Log", action: #selector(viewLog), keyEquivalent: "")
         menu.addItem(NSMenuItem.separator())
         menu.addItem(withTitle: "Quit Inplace AI", action: #selector(quitApp), keyEquivalent: "q")
@@ -127,6 +130,45 @@ class StatusBarController: NSObject, NSApplicationDelegate, ObservableObject {
         }
         settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc func checkForUpdates() {
+        Task {
+            do {
+                if let latestRelease = try await APIClient.shared.checkForUpdates() {
+                    let latestVersion = latestRelease.tag_name.replacingOccurrences(of: "v", with: "")
+                    if latestVersion.compare(currentVersion, options: .numeric) == .orderedDescending {
+                        // New version available
+                        DispatchQueue.main.async {
+                            let alert = NSAlert()
+                            alert.messageText = "Update Available"
+                            alert.informativeText = "A new version \(latestRelease.tag_name) is available. Current version: \(currentVersion)\n\n\(latestRelease.body ?? "")"
+                            alert.addButton(withTitle: "Download")
+                            alert.addButton(withTitle: "Later")
+                            let response = alert.runModal()
+                            if response == .alertFirstButtonReturn {
+                                NSWorkspace.shared.open(URL(string: latestRelease.html_url)!)
+                            }
+                        }
+                    } else {
+                        // Up to date
+                        DispatchQueue.main.async {
+                            let alert = NSAlert()
+                            alert.messageText = "Up to Date"
+                            alert.informativeText = "You are running the latest version (\(currentVersion))."
+                            alert.runModal()
+                        }
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    let alert = NSAlert()
+                    alert.messageText = "Update Check Failed"
+                    alert.informativeText = "Could not check for updates: \(error.localizedDescription)"
+                    alert.runModal()
+                }
+            }
+        }
     }
 
     @objc func viewLog() {

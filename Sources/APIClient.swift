@@ -42,4 +42,11 @@ class APIClient {
             throw URLError(.cannotParseResponse)
         }
     }
+
+    func checkForUpdates() async throws -> GitHubRelease? {
+        let url = URL(string: "https://api.github.com/repos/nemot/inplace_ai/releases/latest")!
+        let (data, _) = try await URLSession.shared.data(from: url)
+        let release = try JSONDecoder().decode(GitHubRelease.self, from: data)
+        return release
+    }
 }

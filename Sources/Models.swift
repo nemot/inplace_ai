@@ -25,3 +25,11 @@ struct LLMModel: Codable {
 struct OpenRouterModelsResponse: Codable {
     let data: [LLMModel]
 }
+
+struct GitHubRelease: Codable {
+    let tag_name: String
+    let name: String
+    let body: String?
+    let published_at: String
+    let html_url: String
+}

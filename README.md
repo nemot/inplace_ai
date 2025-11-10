@@ -19,6 +19,23 @@ AI Hotkey is a macOS background application that enhances productivity by integr
 
 ## Installation & Setup
 
+### Option 1: Homebrew (Recommended)
+
+1. **Install via Homebrew**:
+   ```bash
+   brew tap nemot/inplace_ai
+   brew install inplaceai
+   ```
+
+2. **Run the app**:
+   ```bash
+   brew services start inplaceai
+   ```
+
+The app will appear in your menu bar as a brain icon.
+
+### Option 2: Manual Build
+
 1. **Clone or download** the project
 2. **Build the app**:
    ```bash
