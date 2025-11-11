@@ -172,8 +172,22 @@ class StatusBarController: NSObject, NSApplicationDelegate, ObservableObject {
     }
 
     @objc func viewLog() {
-        // Open Console.app to view logs
-        NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Console.app"))
+        // Open terminal with tail -f on log file
+        if let logPath = FileLogger.shared.getLogFilePath() {
+            let script = """
+            tell application "Terminal"
+                activate
+                do script "tail -f '\(logPath)'"
+            end tell
+            """
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            process.arguments = ["-e", script]
+            try? process.run()
+        } else {
+            // Fallback to Console.app if log file not available
+            NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Console.app"))
+        }
     }
 
     @objc func quitApp() {
@@ -188,20 +202,12 @@ class StatusBarController: NSObject, NSApplicationDelegate, ObservableObject {
 struct SettingsView: View {
     @ObservedObject var controller: StatusBarController
 
-    @State private var apiKey: String = ""
     @State private var workflows: [Workflow] = []
-    @State private var models: [LLMModel] = []
+    @State private var models: [Provider: [LLMModel]] = [:]
     @State private var isLoadingModels = false
 
     var body: some View {
         VStack(spacing: 16) {
-            Text("OpenRouter API Key")
-                .font(.headline)
-            SecureField("API Key", text: $apiKey)
-                .textFieldStyle(.roundedBorder)
-
-            Divider()
-
             HStack {
                 Text("Workflows")
                     .font(.headline)
@@ -218,6 +224,14 @@ struct SettingsView: View {
                         WorkflowView(workflow: $workflow, models: models, onRemove: {
                             if workflows.count > 1 {
                                 workflows.removeAll { $0.id == workflow.id }
+                            }
+                        }, onProviderChange: { provider in
+                            loadModelsIfNeeded(for: provider)
+                        }, onTokenChange: { provider, token in
+                            // Reload models if provider requires token
+                            if provider == .openai || provider == .anthropic {
+                                models[provider] = nil
+                                loadModelsIfNeeded(for: provider, token: token)
                             }
                         })
                             .padding()
@@ -244,21 +258,26 @@ struct SettingsView: View {
                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
         )
         .onAppear {
-            apiKey = PersistenceManager.shared.getAPIKey() ?? ""
             workflows = controller.workflows
-            loadModels()
+            for provider in Provider.allCases {
+                loadModelsIfNeeded(for: provider)
+            }
         }
     }
 
-    private func loadModels() {
-        isLoadingModels = true
-        Task {
-            do {
-                models = try await APIClient.shared.fetchModels()
-            } catch {
-                print("Error loading models: \(error)")
+    private func loadModelsIfNeeded(for provider: Provider, token: String? = nil) {
+        if models[provider] == nil {
+            Task {
+                do {
+                    let tokenToUse = token ?? PersistenceManager.shared.getProviderToken(provider)
+                    let fetchedModels = try await APIClient.shared.fetchModels(for: provider, token: tokenToUse)
+                    models[provider] = fetchedModels
+                } catch {
+                    print("Error loading models for \(provider): \(error)")
+                    // Set empty models if failed
+                    models[provider] = []
+                }
             }
-            isLoadingModels = false
         }
     }
 
@@ -267,7 +286,11 @@ struct SettingsView: View {
     }
 
     private func saveSettings() {
-        PersistenceManager.shared.setAPIKey(apiKey)
+        // Save last used configs
+        for workflow in workflows {
+            PersistenceManager.shared.setProviderToken(workflow.provider, token: workflow.token)
+            PersistenceManager.shared.setProviderModel(workflow.provider, model: workflow.model)
+        }
         controller.workflows = workflows
         PersistenceManager.shared.saveWorkflows(controller.workflows)
         controller.registerHotkeys()
@@ -276,8 +299,10 @@ struct SettingsView: View {
 
 struct WorkflowView: View {
     @Binding var workflow: Workflow
-    let models: [LLMModel]
+    let models: [Provider: [LLMModel]]
     var onRemove: () -> Void
+    var onProviderChange: (Provider) -> Void
+    var onTokenChange: (Provider, String) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -291,8 +316,31 @@ struct WorkflowView: View {
                 .buttonStyle(.borderless)
             }
 
+            Picker("Provider", selection: $workflow.provider) {
+                ForEach(Provider.allCases, id: \.self) { provider in
+                    Text(provider.rawValue).tag(provider)
+                }
+            }
+            .pickerStyle(.menu)
+            .onChange(of: workflow.provider) { newProvider in
+                onProviderChange(newProvider)
+                // Pre-fill token and model from persistence
+                if let savedToken = PersistenceManager.shared.getProviderToken(newProvider) {
+                    workflow.token = savedToken
+                }
+                if let savedModel = PersistenceManager.shared.getProviderModel(newProvider) {
+                    workflow.model = savedModel
+                }
+            }
+
+            TextField("Token", text: $workflow.token)
+                .textFieldStyle(.roundedBorder)
+                .onChange(of: workflow.token) { newToken in
+                    onTokenChange(workflow.provider, newToken)
+                }
+
             Picker("Model", selection: $workflow.model) {
-                ForEach(models, id: \.id) { model in
+                ForEach(models[workflow.provider] ?? [], id: \.id) { model in
                     Text("\(model.id) - \(model.name ?? "")").tag(model.id)
                 }
             }

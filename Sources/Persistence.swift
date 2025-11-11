@@ -56,5 +56,21 @@ class PersistenceManager {
         UserDefaults.standard.set(key, forKey: "openRouterAPIKey")
     }
 
+    func getProviderToken(_ provider: Provider) -> String? {
+        UserDefaults.standard.string(forKey: "provider_\(provider.rawValue)_token")
+    }
+
+    func setProviderToken(_ provider: Provider, token: String) {
+        UserDefaults.standard.set(token, forKey: "provider_\(provider.rawValue)_token")
+    }
+
+    func getProviderModel(_ provider: Provider) -> String? {
+        UserDefaults.standard.string(forKey: "provider_\(provider.rawValue)_model")
+    }
+
+    func setProviderModel(_ provider: Provider, model: String) {
+        UserDefaults.standard.set(model, forKey: "provider_\(provider.rawValue)_model")
+    }
+
 
 }

@@ -13,8 +13,8 @@ class HotkeyManager {
             for hotkey in hotkeys {
                 if let (modifiers, keyCode) = parseHotkey(hotkey) {
                     let monitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
-                        // Skip processing if our app is active (to allow normal copy/paste in settings)
-                        if NSApp.isActive && NSApp.keyWindow != nil {
+                        // Skip processing if our app is active (to allow normal input in settings)
+                        if NSApp.isActive {
                             return
                         }
                         if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == modifiers &&

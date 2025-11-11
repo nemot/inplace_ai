@@ -7,7 +7,7 @@ class ProcessingManager {
     private var originalClipboard: String = ""
 
     func processWorkflow(_ workflow: Workflow, statusController: StatusBarController) async {
-        Log.processing.info("Starting processing for workflow: \(workflow.name, privacy: .public)")
+        Log.processing.info("Starting processing for workflow: \(workflow.name)")
 
         // Change icon to spinner
         statusController.setProcessing(true)
@@ -16,8 +16,8 @@ class ProcessingManager {
             statusController.setProcessing(false)
         }
 
-        guard let apiKey = PersistenceManager.shared.getAPIKey(), !apiKey.isEmpty else {
-            Log.processing.error("No API key set")
+        guard !workflow.token.isEmpty else {
+            Log.processing.error("No API token set for workflow")
             return
         }
 
@@ -39,14 +39,14 @@ class ProcessingManager {
                 return
             }
 
-            Log.processing.info("Selected text: \(selectedText, privacy: .public)")
+            Log.processing.info("Selected text: \(selectedText)")
 
             // Replace {text} in prompt
             let prompt = workflow.prompt.replacingOccurrences(of: "{text}", with: selectedText)
 
             // Call API
-            let response = try await APIClient.shared.sendChatRequest(model: workflow.model, prompt: prompt, apiKey: apiKey)
-            Log.processing.info("API response: \(response, privacy: .public)")
+            let response = try await APIClient.shared.sendChatRequest(provider: workflow.provider, model: workflow.model, prompt: prompt, apiKey: workflow.token)
+            Log.processing.info("API response: \(response)")
 
             // Clean response
             let cleanedResponse = cleanResponse(response)
@@ -70,7 +70,7 @@ class ProcessingManager {
             Log.processing.info("Processing completed")
 
         } catch {
-            Log.processing.error("Processing error: \(error.localizedDescription, privacy: .public)")
+            Log.processing.error("Processing error: \(error.localizedDescription)")
             restoreClipboard()
         }
     }
