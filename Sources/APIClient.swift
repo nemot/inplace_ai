@@ -32,10 +32,30 @@ class APIClient {
         }
     }
 
-    func sendChatRequest(provider: Provider, model: String, prompt: String, apiKey: String) async throws -> String {
+    func sendChatRequest(provider: Provider, model: String, prompt: String, apiKey: String, imageData: Data? = nil) async throws -> String {
         let url: URL
         var request: URLRequest
         var body: [String: Any]
+
+        // Build content based on whether image is present
+        let content: Any
+        if let imageData = imageData {
+            let base64String = imageData.base64EncodedString()
+            switch provider {
+            case .openrouter, .openai:
+                content = [
+                    ["type": "text", "text": prompt],
+                    ["type": "image_url", "image_url": ["url": "data:image/jpeg;base64,\(base64String)"]]
+                ]
+            case .anthropic:
+                content = [
+                    ["type": "text", "text": prompt],
+                    ["type": "image", "source": ["type": "base64", "media_type": "image/jpeg", "data": base64String]]
+                ]
+            }
+        } else {
+            content = prompt
+        }
 
         switch provider {
         case .openrouter:
@@ -45,7 +65,7 @@ class APIClient {
             body = [
                 "model": model,
                 "messages": [
-                    ["role": "user", "content": prompt]
+                    ["role": "user", "content": content]
                 ]
             ]
         case .openai:
@@ -55,7 +75,7 @@ class APIClient {
             body = [
                 "model": model,
                 "messages": [
-                    ["role": "user", "content": prompt]
+                    ["role": "user", "content": content]
                 ]
             ]
         case .anthropic:
@@ -67,7 +87,7 @@ class APIClient {
                 "model": model,
                 "max_tokens": 4096,
                 "messages": [
-                    ["role": "user", "content": prompt]
+                    ["role": "user", "content": content]
                 ]
             ]
         }

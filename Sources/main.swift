@@ -401,6 +401,8 @@ struct WorkflowView: View {
                 }
             }
             .pickerStyle(.segmented)
+
+            Toggle("Include Screenshot", isOn: $workflow.includeScreenshot)
         }
     }
 }

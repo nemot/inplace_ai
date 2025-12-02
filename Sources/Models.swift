@@ -17,6 +17,7 @@ struct Workflow: Codable, Identifiable {
     var optionalHotkey1: String = ""
     var optionalHotkey2: String = ""
     var outputMethod: OutputMethod = .pasteInPlace
+    var includeScreenshot: Bool = false
 }
 
 enum OutputMethod: String, Codable, CaseIterable {

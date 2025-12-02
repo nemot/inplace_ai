@@ -44,8 +44,14 @@ class ProcessingManager {
             // Replace {text} in prompt
             let prompt = workflow.prompt.replacingOccurrences(of: "{text}", with: selectedText)
 
+            // Capture screenshot if enabled
+            var screenshotData: Data? = nil
+            if workflow.includeScreenshot {
+                screenshotData = captureAndResizeScreenshot()
+            }
+
             // Call API
-            let response = try await APIClient.shared.sendChatRequest(provider: workflow.provider, model: workflow.model, prompt: prompt, apiKey: workflow.token)
+            let response = try await APIClient.shared.sendChatRequest(provider: workflow.provider, model: workflow.model, prompt: prompt, apiKey: workflow.token, imageData: screenshotData)
             Log.processing.info("API response: \(response)")
 
             // Clean response
@@ -100,6 +106,40 @@ class ProcessingManager {
 
         keyDown?.post(tap: .cghidEventTap)
         keyUp?.post(tap: .cghidEventTap)
+    }
+
+    private func captureAndResizeScreenshot() -> Data? {
+        // Capture the entire screen
+        guard let image = CGDisplayCreateImage(CGMainDisplayID()) else {
+            Log.processing.error("Failed to capture screenshot")
+            return nil
+        }
+
+        // Create NSImage from CGImage
+        let nsImage = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
+
+        // Calculate new size maintaining aspect ratio, max width 1280
+        let maxWidth: CGFloat = 1280
+        let aspectRatio = nsImage.size.height / nsImage.size.width
+        let newWidth = min(maxWidth, nsImage.size.width)
+        let newHeight = newWidth * aspectRatio
+
+        // Resize image
+        let newSize = NSSize(width: newWidth, height: newHeight)
+        let resizedImage = NSImage(size: newSize)
+        resizedImage.lockFocus()
+        nsImage.draw(in: NSRect(origin: .zero, size: newSize), from: NSRect(origin: .zero, size: nsImage.size), operation: .copy, fraction: 1.0)
+        resizedImage.unlockFocus()
+
+        // Convert to JPEG data
+        guard let tiffData = resizedImage.tiffRepresentation,
+              let bitmapImage = NSBitmapImageRep(data: tiffData),
+              let jpegData = bitmapImage.representation(using: .jpeg, properties: [.compressionFactor: 0.8]) else {
+            Log.processing.error("Failed to convert screenshot to JPEG")
+            return nil
+        }
+
+        return jpegData
     }
 
     private func cleanResponse(_ response: String) -> String {
