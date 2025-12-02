@@ -119,7 +119,7 @@ class ProcessingManager {
 class BannerWindow: NSWindow {
     init(text: String) {
         super.init(contentRect: NSRect(x: 0, y: 0, width: 500, height: 500),
-                   styleMask: [.titled, .closable],
+                   styleMask: [.titled, .closable, .resizable],
                    backing: .buffered,
                    defer: false)
 
@@ -127,11 +127,22 @@ class BannerWindow: NSWindow {
         self.level = .floating
         self.isReleasedWhenClosed = false
 
-        let textView = NSTextView(frame: self.contentView!.bounds)
+        let contentBounds = self.contentView!.bounds
+        let insetRect = contentBounds.insetBy(dx: 10, dy: 10)
+        let scrollView = NSScrollView(frame: insetRect)
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = true
+        scrollView.autoresizingMask = [.width, .height]
+
+        let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: scrollView.contentSize.width, height: scrollView.contentSize.height))
         textView.string = text
         textView.isEditable = false
         textView.backgroundColor = .clear
-        self.contentView?.addSubview(textView)
+        textView.font = NSFont.systemFont(ofSize: 14)
+        textView.autoresizingMask = [.width, .height]
+
+        scrollView.documentView = textView
+        self.contentView?.addSubview(scrollView)
 
         self.center()
     }
